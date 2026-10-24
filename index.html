@@ -63,6 +63,12 @@ h2{font-weight:500;font-size:1.15rem;margin:.2rem 0 .8rem}
  <div class="ctl"><button id="mute" class="sm">Voice on</button><button class="mic" id="mic">Talk</button><button id="hf" class="sm" aria-pressed="false">Hands-free off</button><button id="stop" class="sm">Stop</button><button id="kb" class="sm">Keyboard</button></div><p class="note" style="text-align:center;margin:0">Hands-free works while this page stays open. Tap Stop to pause listening.</p></div>
 </section>
 <section id="tasks" class="view"><h2>Tasks and reminders</h2>
+ <button id="brief" type="button" style="width:100%;margin:0 0 .8rem;border-color:var(--blue);color:var(--cyan)">☀ Plan my day · Daily Briefing</button>
+ <div id="taskstats" class="note" style="margin:.2rem 0 .8rem"></div>
+ <div class="ctl" style="justify-content:stretch;margin-bottom:.8rem">
+  <select id="taskfilter" aria-label="Filter tasks" style="flex:1"><option value="all">All tasks</option><option value="pending">Pending</option><option value="done">Completed</option></select>
+  <button id="clearDone" type="button" class="sm">Clear completed</button>
+ </div>
  <form class="add" id="rf"><input type="text" id="rt" placeholder="What should I remind you about?" required><input type="datetime-local" id="rd" aria-label="When (optional)"><button>Add</button></form>
  <div id="rl"></div><p class="note">Timed reminders alert you while Neo is open on screen. Alerts when the app is closed need the Android app.</p></section>
 <section id="mem" class="view"><h2>Memory</h2>
@@ -116,7 +122,24 @@ async function ask(sys,m,signal){const s=S.set,p=P[s.prov]||P.gemini,model=s.mod
  let r;try{r=await fetch(url,{method:'POST',headers:h,body:JSON.stringify(body),signal})}catch(e){if(e.name=='AbortError')throw e;throw new Error('Couldn’t reach the AI service. Check your internet connection and the address.')}
  if(!r.ok){const c=r.status;throw new Error(c==401||c==403?'The API key was rejected. Check it in Settings.':c==429?'Free limit reached. Wait a minute, try tomorrow, or switch provider.':c==400||c==404?'The provider didn’t accept the model name. Check the Model field in Settings.':'The AI service returned an error ('+c+').')}
  const t=pull(await r.json()).replace(/<think>[\s\S]*?<\/think>/g,'').trim();if(!t)throw new Error('The model sent an empty reply. Try again or pick another model.');return t}
-async function send(text){text=text.trim();if(!text||busy)return;if(!S.set.key&&S.set.prov!='custom'){go('set');return toast('Connect an AI model first. Paste a free API key below.',7000)}ss&&ss.cancel();busy=true;bubble('u',text);S.hist.push({role:'user',content:text});st('thinking');
+function dailyTaskContext(){
+ const now=new Date(), today=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+ const todays=S.rem.filter(x=>x.w&&x.w.slice(0,10)===today);
+ const undated=S.rem.filter(x=>!x.w);
+ const lines=[];
+ lines.push('Date: '+now.toLocaleDateString([], {weekday:'long',year:'numeric',month:'long',day:'numeric'}));
+ lines.push('Tasks scheduled for today:');
+ lines.push(todays.length?todays.map(x=>'- ['+(x.done?'COMPLETED':'PENDING')+'] '+x.t+(x.w?' at '+new Date(x.w).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):'')).join('\\n'):'- None scheduled for today.');
+ lines.push('Tasks without a scheduled date (include only if useful):');
+ lines.push(undated.length?undated.map(x=>'- ['+(x.done?'COMPLETED':'PENDING')+'] '+x.t).join('\\n'):'- None.');
+ lines.push('Other dated tasks are not included in today’s list.');
+ return lines.join('\\n');
+}
+async function send(text){text=text.trim();if(!text||busy)return;
+ if(/\\b(plan my day|daily briefing|daily brief|what tasks do i have today|summari[sz]e my tasks today|give me my daily summary)\\b/i.test(text)){
+   text += '\\n\\nCreate a daily briefing from these saved Neo tasks. Clearly separate pending and completed items, mention today’s scheduled times, and suggest a simple realistic order for the pending tasks. Do not invent appointments or deadlines.\\n'+dailyTaskContext();
+ }
+ if(!S.set.key&&S.set.prov!='custom'){go('set');return toast('Connect an AI model first. Paste a free API key below.',7000)}ss&&ss.cancel();busy=true;bubble('u',text);S.hist.push({role:'user',content:text});st('thinking');
  const ctx='You are Neo, a calm, warm, subtly witty voice assistant in the spirit of JARVIS. Reply in one to three short spoken sentences, plain text, no markdown or lists unless asked. Never repeat greetings. Be honest: you can only save memories and reminders using the tags below; you cannot send email or phone notifications. Never claim an action happened unless you emit its tag.\nNow: '+new Date().toString()+'\nMemory:\n'+(S.mem.map((m,i)=>i+': '+m).join('\n')||'(none)')+'\nTo save a lasting fact about the user append [[REMEMBER|fact]]; to correct memory n append [[UPDATE|n|new fact]]; for a reminder append [[REMIND|YYYY-MM-DDTHH:mm in local time|title]]. Only tag when the user clearly wants it. Never save passwords, keys or card numbers. For sensitive facts (health, money, identity) ask permission first and tag only after a yes.';
  const m=S.hist.slice(-12).map(x=>({role:x.role,content:x.content}));while(m[0].role!='user')m.shift();
  const b=bubble('a','…');ctl=new AbortController();
@@ -130,7 +153,27 @@ function listen(){const R=window.SpeechRecognition||window.webkitSpeechRecogniti
 function renderHandsFree(){const b=$('#hf');if(!b)return;b.textContent=handsFree?'Hands-free on':'Hands-free off';b.setAttribute('aria-pressed',String(handsFree));b.style.borderColor=handsFree?'var(--cyan)':'var(--line)';b.style.color=handsFree?'var(--cyan)':'var(--dim)'}
 function renderMem(){const l=$('#ml');l.innerHTML='';if(!S.mem.length)l.innerHTML='<p class="note">Nothing saved yet. Tell Neo about your goals and preferences.</p>';S.mem.forEach((f,i)=>{const r=document.createElement('div');r.className='row';const s=document.createElement('span');s.textContent=f;const e=document.createElement('button');e.className='sm';e.textContent='Edit';const d=document.createElement('button');d.className='sm';d.textContent='Delete';
  e.onclick=()=>{const inp=document.createElement('input');inp.type='text';inp.value=f;s.replaceWith(inp);e.textContent='Save';e.onclick=()=>{S.mem[i]=inp.value.trim()||f;save('mem');renderMem()}};d.onclick=()=>{S.mem.splice(i,1);save('mem');renderMem()};r.append(s,e,d);l.appendChild(r)})}
-function renderRem(){const l=$('#rl');l.innerHTML='';if(!S.rem.length)l.innerHTML='<p class="note">No tasks yet. Add one above or ask Neo.</p>';[...S.rem].sort((a,b)=>(a.w||'9')>(b.w||'9')?1:-1).forEach(x=>{const r=document.createElement('div');r.className='row'+(x.done?' done':'');const c=document.createElement('input');c.type='checkbox';c.checked=x.done;c.setAttribute('aria-label','Done');c.onchange=()=>{x.done=c.checked;save('rem');renderRem()};const s=document.createElement('span');s.textContent=x.t;if(x.w){const w=document.createElement('small');w.className='when';w.textContent=fmt(x.w);s.appendChild(w)}const d=document.createElement('button');d.className='sm';d.textContent='Delete';d.onclick=()=>{S.rem=S.rem.filter(y=>y!==x);save('rem');renderRem()};r.append(c,s,d);l.appendChild(r)})}
+function renderRem(){
+ const l=$('#rl');l.innerHTML='';
+ const total=S.rem.length, done=S.rem.filter(x=>x.done).length, pending=total-done;
+ const today=new Date();const key=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+ const dueToday=S.rem.filter(x=>!x.done&&x.w&&x.w.slice(0,10)===key).length;
+ $('#taskstats').textContent=total+' total · '+pending+' pending · '+done+' completed · '+dueToday+' due today';
+ const filter=$('#taskfilter')?$('#taskfilter').value:'all';
+ let items=[...S.rem].filter(x=>filter==='pending'?!x.done:filter==='done'?x.done:true);
+ items.sort((a,b)=>(a.w||'9')>(b.w||'9')?1:-1);
+ if(!items.length){l.innerHTML='<p class="note">'+(total?'No tasks match this filter.':'No tasks yet. Add one above or ask Neo.')+'</p>';return}
+ items.forEach(x=>{
+  const r=document.createElement('div');r.className='row'+(x.done?' done':'');
+  const c=document.createElement('input');c.type='checkbox';c.checked=x.done;c.setAttribute('aria-label','Done');
+  c.onchange=()=>{x.done=c.checked;save('rem');renderRem()};
+  const s=document.createElement('span');s.textContent=x.t;
+  if(x.w){const w=document.createElement('small');w.className='when';w.textContent=fmt(x.w);s.appendChild(w)}
+  const d=document.createElement('button');d.className='sm';d.textContent='Delete';
+  d.onclick=()=>{S.rem=S.rem.filter(y=>y!==x);save('rem');renderRem()};
+  r.append(c,s,d);l.appendChild(r)
+ })
+}
 function renderSet(){const v=$('#vs');v.innerHTML='';vlist().forEach(x=>{const o=new Option(x.name,x.name,0,x.name==(pick()||{}).name);v.add(o)});if(!v.options.length)v.add(new Option('No voices found on this device',''));$('#rate').value=S.set.rate;$('#nt').checked=S.set.notify;$('#mute').textContent=S.set.mute?'Voice off':'Voice on';
  const p=P[S.set.prov]||P.gemini,pv=$('#pv');pv.innerHTML='';Object.keys(P).forEach(k=>pv.add(new Option(P[k].n,k,0,k==S.set.prov)));
  $('#pn').innerHTML=p.t+(p.u?' <a href="'+p.u+'" target="_blank" rel="noopener">Get a key</a>':'');$('#ak').value=S.set.key;$('#md').value=S.set.model;$('#md').placeholder=p.m||'Model name';$('#bu').value=S.set.base;$('#bu').placeholder=p.b||'https://your-server/v1';$('#bw').style.display=S.set.prov=='custom'?'':'none'}
@@ -148,6 +191,10 @@ $('#mute').onclick=()=>{S.set.mute=!S.set.mute;if(S.set.mute&&ss)ss.cancel();sav
 $('#kb').onclick=()=>{$('#tx').classList.toggle('on');$('#txt').focus()};
 $('#tx').onsubmit=e=>{e.preventDefault();const t=$('#txt').value;$('#txt').value='';send(t)};
 $('#rf').onsubmit=e=>{e.preventDefault();toast(addRem($('#rt').value,$('#rd').value));e.target.reset()};
+ $('#brief').onclick=()=>{go('talk');send('Plan my day')};
+ $('#taskfilter').onchange=renderRem;
+ $('#clearDone').onclick=()=>{const n=S.rem.filter(x=>x.done).length;if(!n)return toast('No completed tasks to clear.');if(!confirm('Delete '+n+' completed task(s)?'))return;S.rem=S.rem.filter(x=>!x.done);save('rem');renderRem();toast('Completed tasks cleared.')};
+ $('#brief').onclick=()=>{go('talk');send('Plan my day')};
 $('#mf').onsubmit=e=>{e.preventDefault();toast(addMem($('#mt').value)||'Not saved. It’s a duplicate or looks like a secret.');e.target.reset()};
 $('#vs').onchange=e=>{S.set.voice=e.target.value;save('set');say('Hello, I’m Neo.')};
 $('#rate').onchange=e=>{S.set.rate=e.target.value;save('set');say('This is my speaking speed.')};
