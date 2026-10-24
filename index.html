@@ -60,7 +60,7 @@ h2{font-weight:500;font-size:1.15rem;margin:.2rem 0 .8rem}
  <div class="stage"><div class="orb" id="orb" role="button" tabindex="0" aria-label="Talk to Neo"></div><p id="state"></p><p id="interim"></p></div>
  <div id="log"><p class="hint" id="hint">Tap the orb and speak, or open the keyboard.</p></div>
  <div class="dock"><form id="tx"><input type="text" id="txt" placeholder="Message Neo" autocomplete="off"><button>Send</button></form>
- <div class="ctl"><button id="mute" class="sm">Voice on</button><button class="mic" id="mic">Talk</button><button id="stop" class="sm">Stop</button><button id="kb" class="sm">Keyboard</button></div></div>
+ <div class="ctl"><button id="mute" class="sm">Voice on</button><button class="mic" id="mic">Talk</button><button id="hf" class="sm" aria-pressed="false">Hands-free off</button><button id="stop" class="sm">Stop</button><button id="kb" class="sm">Keyboard</button></div><p class="note" style="text-align:center;margin:0">Hands-free works while this page stays open. Tap Stop to pause listening.</p></div>
 </section>
 <section id="tasks" class="view"><h2>Tasks and reminders</h2>
  <form class="add" id="rf"><input type="text" id="rt" placeholder="What should I remind you about?" required><input type="datetime-local" id="rd" aria-label="When (optional)"><button>Add</button></form>
@@ -84,7 +84,7 @@ h2{font-weight:500;font-size:1.15rem;margin:.2rem 0 .8rem}
 <nav><button data-v="talk" class="on">Talk</button><button data-v="tasks">Tasks</button><button data-v="mem">Memory</button><button data-v="set">Settings</button></nav>
 <script>
 const $=s=>document.querySelector(s),ss=window.speechSynthesis;
-let S={mem:[],rem:[],hist:[],set:{voice:'',rate:1,mute:false,notify:true,prov:'gemini',model:'',key:'',base:''}},store,busy=false,rec,listening=false,ctl;
+let S={mem:[],rem:[],hist:[],set:{voice:'',rate:1,mute:false,notify:true,prov:'gemini',model:'',key:'',base:''}},store,busy=false,rec,listening=false,ctl,handsFree=false,hfTimer=null;
 const KEYS=['mem','rem','hist','set'];
 function toast(t,ms=4500){const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',ms)}
 const save=k=>store&&store.sv(k,S[k]).catch(()=>toast('Couldn’t save that. Check your connection.'));
@@ -97,7 +97,8 @@ function st(s){document.body.className=s;$('#talk').classList.remove('idle','lis
 function bubble(c,t){$('#hint')&&$('#hint').remove();const d=document.createElement('div');d.className=c=='c'?'chip':'m '+c;d.textContent=t;const l=$('#log');l.appendChild(d);l.scrollTop=l.scrollHeight;return d}
 const vlist=()=>ss?ss.getVoices().filter(v=>/^en/i.test(v.lang)):[];
 function pick(){const v=vlist();return v.find(x=>x.name==S.set.voice)||v.find(x=>/female|zira|aria|jenny|samantha|karen|moira|tessa|serena|libby|sonia|hazel|susan|google (uk|us) english/i.test(x.name))||v[0]}
-function say(t){if(!ss||S.set.mute)return;ss.cancel();const u=new SpeechSynthesisUtterance(t.replace(/[*_#`>]/g,''));const v=pick();if(v){u.voice=v;u.lang=v.lang}u.rate=+S.set.rate;u.pitch=1.05;u.onstart=()=>st('speaking');u.onend=u.onerror=()=>{if(!busy&&!listening)st('idle')};ss.speak(u)}
+function queueHandsFree(delay=700){clearTimeout(hfTimer);if(handsFree&&!busy&&!listening)hfTimer=setTimeout(()=>{if(handsFree&&!busy&&!listening)listen()},delay)}
+function say(t){if(!ss||S.set.mute){queueHandsFree();return}ss.cancel();const u=new SpeechSynthesisUtterance(t.replace(/[*_#`>]/g,''));const v=pick();if(v){u.voice=v;u.lang=v.lang}u.rate=+S.set.rate;u.pitch=1.05;u.onstart=()=>st('speaking');u.onend=u.onerror=()=>{if(!busy&&!listening)st('idle');queueHandsFree()};ss.speak(u)}
 const SECRET=/password|passcode|\bcvv\b|api[_ -]?key|secret|token|\b\d{13,19}\b/i;
 function addMem(f){f=(f||'').trim();if(!f||SECRET.test(f))return null;if(S.mem.some(m=>m.toLowerCase()==f.toLowerCase()))return null;S.mem.push(f);save('mem');renderMem();return 'Remembered: '+f}
 function updMem(i,f){f=(f||'').trim();if(!S.mem[i]||!f||SECRET.test(f))return null;S.mem[i]=f;save('mem');renderMem();return 'Updated memory: '+f}
@@ -124,8 +125,9 @@ async function send(text){text=text.trim();if(!text||busy)return;if(!S.set.key&&
 function listen(){const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R)return toast('This browser doesn’t support speech recognition. Use the keyboard instead.');
  if(listening){rec.stop();return}if(busy)return;ss&&ss.cancel();rec=new R();rec.lang='en-US';rec.interimResults=true;let fin='';
  rec.onstart=()=>{listening=true;st('listening')};rec.onresult=e=>{fin=[...e.results].map(r=>r[0].transcript).join('');$('#interim').textContent=fin};
- rec.onerror=e=>toast(({'not-allowed':'Microphone is blocked. Allow it in your browser’s site settings, or use the keyboard.','service-not-allowed':'The microphone is blocked in this view. Try opening the artifact link directly in Chrome, or use the keyboard.','no-speech':'I didn’t catch that. Tap and try again.','network':'Speech recognition needs an internet connection.'})[e.error]||'Voice input failed ('+e.error+').');
- rec.onend=()=>{listening=false;$('#interim').textContent='';if(fin.trim())send(fin);else if(!busy)st('idle')};try{rec.start()}catch(e){}}
+ rec.onerror=e=>{toast(({'not-allowed':'Microphone is blocked. Allow it in your browser’s site settings, or use the keyboard.','service-not-allowed':'The microphone is blocked in this view. Try opening the page directly in Chrome, or use the keyboard.','no-speech':'I didn’t catch that. Listening again shortly…','network':'Speech recognition needs an internet connection.'})[e.error]||'Voice input failed ('+e.error+').');if(e.error==='not-allowed'||e.error==='service-not-allowed'){handsFree=false;renderHandsFree()}};
+  rec.onend=()=>{listening=false;$('#interim').textContent='';if(fin.trim())send(fin);else if(!busy){st('idle');queueHandsFree(900)}};try{rec.start()}catch(e){if(handsFree)queueHandsFree(1200)}}
+function renderHandsFree(){const b=$('#hf');if(!b)return;b.textContent=handsFree?'Hands-free on':'Hands-free off';b.setAttribute('aria-pressed',String(handsFree));b.style.borderColor=handsFree?'var(--cyan)':'var(--line)';b.style.color=handsFree?'var(--cyan)':'var(--dim)'}
 function renderMem(){const l=$('#ml');l.innerHTML='';if(!S.mem.length)l.innerHTML='<p class="note">Nothing saved yet. Tell Neo about your goals and preferences.</p>';S.mem.forEach((f,i)=>{const r=document.createElement('div');r.className='row';const s=document.createElement('span');s.textContent=f;const e=document.createElement('button');e.className='sm';e.textContent='Edit';const d=document.createElement('button');d.className='sm';d.textContent='Delete';
  e.onclick=()=>{const inp=document.createElement('input');inp.type='text';inp.value=f;s.replaceWith(inp);e.textContent='Save';e.onclick=()=>{S.mem[i]=inp.value.trim()||f;save('mem');renderMem()}};d.onclick=()=>{S.mem.splice(i,1);save('mem');renderMem()};r.append(s,e,d);l.appendChild(r)})}
 function renderRem(){const l=$('#rl');l.innerHTML='';if(!S.rem.length)l.innerHTML='<p class="note">No tasks yet. Add one above or ask Neo.</p>';[...S.rem].sort((a,b)=>(a.w||'9')>(b.w||'9')?1:-1).forEach(x=>{const r=document.createElement('div');r.className='row'+(x.done?' done':'');const c=document.createElement('input');c.type='checkbox';c.checked=x.done;c.setAttribute('aria-label','Done');c.onchange=()=>{x.done=c.checked;save('rem');renderRem()};const s=document.createElement('span');s.textContent=x.t;if(x.w){const w=document.createElement('small');w.className='when';w.textContent=fmt(x.w);s.appendChild(w)}const d=document.createElement('button');d.className='sm';d.textContent='Delete';d.onclick=()=>{S.rem=S.rem.filter(y=>y!==x);save('rem');renderRem()};r.append(c,s,d);l.appendChild(r)})}
@@ -140,7 +142,8 @@ $('#pv').onchange=e=>{S.set.prov=e.target.value;S.set.model='';S.set.base='';sav
 [['ak','key'],['md','model'],['bu','base']].forEach(([i,k])=>$('#'+i).onchange=e=>{S.set[k]=e.target.value.trim();save('set')});
 $('#tc').onclick=async()=>{if(!S.set.key&&S.set.prov!='custom')return toast('Paste an API key first.');toast('Testing…');try{const r=await ask('Reply in five words.',[{role:'user',content:'Say hello.'}]);toast('Connected. Neo says: '+r.slice(0,80),7000)}catch(e){toast(e.message,8000)}};
 $('#mic').onclick=$('#orb').onclick=()=>{if(ss&&ss.speaking){ss.cancel();st('idle')}listen()};$('#orb').onkeydown=e=>{if(e.key=='Enter'||e.key==' ')listen()};
-$('#stop').onclick=()=>{ss&&ss.cancel();ctl&&ctl.abort();rec&&listening&&rec.abort();st('idle')};
+$('#hf').onclick=()=>{handsFree=!handsFree;renderHandsFree();if(handsFree){toast('Hands-free enabled. Keep Neo open and allow microphone access.');if(!busy&&!listening)listen()}else{clearTimeout(hfTimer);if(rec&&listening)rec.stop();toast('Hands-free paused.')}};
+$('#stop').onclick=()=>{handsFree=false;clearTimeout(hfTimer);renderHandsFree();ss&&ss.cancel();ctl&&ctl.abort();rec&&listening&&rec.abort();st('idle')};
 $('#mute').onclick=()=>{S.set.mute=!S.set.mute;if(S.set.mute&&ss)ss.cancel();save('set');renderSet()};
 $('#kb').onclick=()=>{$('#tx').classList.toggle('on');$('#txt').focus()};
 $('#tx').onsubmit=e=>{e.preventDefault();const t=$('#txt').value;$('#txt').value='';send(t)};
@@ -152,5 +155,5 @@ $('#nt').onchange=e=>{S.set.notify=e.target.checked;save('set')};
 $('#np').onclick=async()=>{if(!window.Notification)return toast('This browser doesn’t support notifications.');const p=await Notification.requestPermission();toast(p=='granted'?'Notifications allowed. They only fire while Neo is open.':'Notifications are blocked.')};
 $('#ch').onclick=()=>{S.hist=[];save('hist');$('#log').innerHTML='<p class="hint" id="hint">History cleared.</p>'};
 if(ss)ss.onvoiceschanged=renderSet;
-st('idle');initStore();if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+st('idle');renderHandsFree();initStore();if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script></body></html>
