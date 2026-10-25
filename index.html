@@ -57,6 +57,54 @@ h2{font-weight:500;font-size:1.15rem;margin:.2rem 0 .8rem}
 .phonegrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.6rem;margin:.6rem 0}
 .phonegrid button{border-radius:14px;min-height:54px;border-color:#1d4a7a}
 @media(prefers-reduced-motion:reduce){*{animation:none!important}}
+
+/* Neo premium mobile redesign — presentation-only overrides; existing IDs and behavior retained */
+:root{--bg:#020817;--ink:#e6f2ff;--dim:#8ba6c9;--blue:#168cff;--cyan:#48e5ff;--line:#173765;--panel:rgba(10,25,49,.92);--amber:#ffb454}
+body{background:radial-gradient(ellipse at 50% 24%,#09285a 0%,#04142e 28%,#020817 68%,#01040b 100%);letter-spacing:.01em}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.22;background:repeating-linear-gradient(115deg,transparent 0 34px,#0759b5 35px,transparent 36px 70px);mask-image:linear-gradient(transparent 15%,black 45%,transparent 75%)}
+.view{padding:1rem .9rem 1.2rem;scrollbar-width:thin;scrollbar-color:#174b88 transparent}
+#talk{padding:0;gap:0}
+.stage{padding:1.05rem .9rem .55rem;position:relative;flex:none}
+.stage::before{content:"Neo";display:block;text-align:left;font-size:2.35rem;font-weight:500;letter-spacing:-.06em;line-height:1.1;background:linear-gradient(110deg,#fff,#7cc9ff 65%,#38e8ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.stage::after{content:"YOUR PERSONAL AI ASSISTANT  ·  ● ONLINE";display:block;text-align:left;color:#9cbce4;font-size:.68rem;letter-spacing:.11em;margin-top:.3rem}
+.orb{width:min(42vw,174px);margin:1.1rem auto .75rem;background:radial-gradient(circle at 34% 27%,#f4ffff 0%,#6bdcff 10%,#168aff 34%,#0644a2 59%,#04112c 78%);border:1px solid #66e9ff;box-shadow:0 0 18px #168cff99,0 0 55px #087aff66,inset 0 0 30px #c9faff88}
+.orb::before{inset:-12%;border:1px solid #2b9bff99;box-shadow:0 0 18px #067bff33}
+.orb::after{inset:-23%;border:1px dashed #32c9ff55}
+#state{font-size:.83rem;letter-spacing:.22em;text-transform:uppercase;text-shadow:0 0 14px #31cfff66}
+#interim{font-size:.78rem}
+#log{padding:.65rem .9rem;gap:.7rem;overscroll-behavior:contain}
+.m{max-width:91%;padding:.8rem .95rem;border-radius:18px;font-size:.92rem;line-height:1.55;box-shadow:0 8px 24px #0002}
+.u{align-self:flex-end;background:linear-gradient(135deg,#073d7c,#052449);border:1px solid #168cff;border-bottom-right-radius:5px;box-shadow:0 0 20px #087aff20}
+.a{align-self:flex-start;background:linear-gradient(145deg,#0b1a32eF,#071326f5);border:1px solid #1b3b66;border-bottom-left-radius:5px}
+.hint{color:#8ba6c9;font-size:.85rem;padding:1rem}
+.dock{padding:.55rem .75rem .75rem;gap:.55rem;background:linear-gradient(180deg,transparent,#020817 18%)}
+.ctl{gap:.35rem;flex-wrap:wrap}
+button{border-color:#214a7c;background:linear-gradient(145deg,#0a1b35,#061124);transition:transform .15s,border-color .15s,box-shadow .15s}
+button:active{transform:scale(.97)}
+button:hover{border-color:#48cfff;box-shadow:0 0 14px #168cff28}
+.sm{font-size:.72rem;padding:.48rem .62rem;white-space:nowrap}
+.mic{width:72px;height:72px;flex:0 0 72px;border:1px solid #59e8ff;background:radial-gradient(circle at 35% 25%,#1d8eff,#06265a 72%);box-shadow:0 0 0 5px #0b4a8b55,0 0 28px #078cff88,inset 0 0 18px #8ceaff66;font-size:.78rem}
+.listening .mic{background:radial-gradient(circle,#18b9ff,#073e82);box-shadow:0 0 0 6px #0d72bd55,0 0 35px #27dfff}
+.note{font-size:.72rem;color:#7e9abb;line-height:1.45}
+#tx{gap:.45rem;margin-bottom:.25rem}
+#tx button,.add button{border-color:#168cff;background:linear-gradient(120deg,#0869d4,#074c9e);font-weight:500}
+input[type=text],input[type=datetime-local],input[type=password],input[type=range],select{background:#07152b;border:1px solid #1c3d67;border-radius:13px;padding:.72rem .8rem}
+nav{padding:0 .25rem env(safe-area-inset-bottom,0px);background:rgba(2,8,23,.97);border-top:1px solid #15345b;box-shadow:0 -10px 28px #0003;backdrop-filter:blur(16px)}
+nav button{flex:1;min-width:0;font-size:.72rem;line-height:1.25;padding:.78rem .08rem .85rem;color:#7896bd;background:transparent;border:0;border-radius:12px;margin:.25rem .08rem;white-space:nowrap}
+nav button::before{display:block;font-size:1.05rem;margin-bottom:.22rem;color:inherit}
+nav button[data-v="talk"]::before{content:"✦"}nav button[data-v="tasks"]::before{content:"☷"}nav button[data-v="mem"]::before{content:"◉"}nav button[data-v="phone"]::before{content:"⌕"}nav button[data-v="set"]::before{content:"⚙"}
+nav button.on{color:#71eaff;background:linear-gradient(180deg,#0b3260,#07172d);box-shadow:inset 0 1px 0 #38cfff,0 0 18px #087aff20}
+h2{font-size:1.28rem;letter-spacing:-.025em;margin:.25rem 0 1rem}
+.row,.lbl{border-bottom-color:#183354}
+.row{padding:.8rem 0}
+.row button,.lbl button{font-size:.78rem}
+.phonegrid{gap:.55rem}
+.phonegrid button{border-radius:16px;background:linear-gradient(145deg,#0b2040,#061124);min-height:62px}
+.f{padding:.6rem 0}
+#toast{background:#0c2343;border:1px solid #2478bd;border-radius:14px;box-shadow:0 8px 32px #0008}
+@media(min-width:520px){.view{padding-left:1.3rem;padding-right:1.3rem}.stage{padding-left:1.3rem;padding-right:1.3rem}.orb{width:190px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
 </style></head>
 <body>
 <div id="toast" role="status"></div>
